@@ -7,10 +7,13 @@
 #include "proc.h"
 #include "spinlock.h"
 
+#define M 10000
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
 } ptable;
+
+
 
 static struct proc *initproc;
 
@@ -178,7 +181,7 @@ growproc(int n)
 // Sets up stack to return as if from system call.
 // Caller must set state of returned proc to RUNNABLE.
 int
-fork(void)
+fork(int tickets)
 {
   int i, pid;
   struct proc *np;
@@ -215,6 +218,9 @@ fork(void)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+  np->tickets = tickets;
+  np->stride = M / tickets;
+  np->value_at = np->stride;
 
   release(&ptable.lock);
 
@@ -323,18 +329,38 @@ void
 scheduler(void)
 {
   struct proc *p;
+  //struct proc *aux;
   struct cpu *c = mycpu();
   c->proc = 0;
+  int min;
   
   for(;;){
     // Enable interrupts on this processor.
-    sti();
+  sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+voltar:
+    min = 10000;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if (p->state == RUNNABLE && p->value_at < min){
+        min = p->value_at;
+      } else if (p->value_at > 10000) {
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) p->value_at = p->stride;
+        goto voltar;
+      } else {
+        continue;
+      }
+    }
+
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
+      if (p->value_at != min)
+        continue;
+      
+      p->value_at += p->stride;
+      //cprintf("%d\n", p->value_at);
 
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
@@ -349,6 +375,7 @@ scheduler(void)
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+      break;
     }
     release(&ptable.lock);
 
