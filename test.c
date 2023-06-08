@@ -1,93 +1,68 @@
+
 #include "types.h"
-#include "param.h"
 #include "user.h"
+#include "stat.h"
 
-#define MAX 20000
 
+#define NUMBER_OF_PROCESS 10
+#define ARRAY_MAX_SIZE 2000
 
-int arr[MAX];
+int size = ARRAY_MAX_SIZE;
+int arr[ARRAY_MAX_SIZE];
+int num = ARRAY_MAX_SIZE;
 
-void fill(int *arr, int n) {
-    int j = n;
-    for (int i = 0; i < n; i++)
-    {
-        arr[i] = j;
-        j--; 
-    }
+void swap(int *xp, int *yp) {
+  int temp = *xp;
+  *xp = *yp;
+  *yp = temp;
 }
 
-void bubble_sort(int *arr, int n) {
-    int i, j, temp;
-    for (i = 0; i < n; i++) {
-        for (j = 0; j < n-1; j++) {
+
+
+void bubble_sort(int arr[], int n) {
+    for (int i = 0; i < n-1; i++) {
+        for (int j = 0; j < n-i-1; j++) {
             if (arr[j] > arr[j+1]) {
-                temp = arr[j];
-                arr[j] = arr[j+1];
-                arr[j+1] = temp;
+                swap(arr+j, arr+j+1);
             }
         }
     }
 }
+void wasteTime(){
+    for(int i=0; i<10;i++){
 
-void wastetime() {
-    
-    
-    fill(arr, MAX);
-    bubble_sort(arr, MAX);
+    for (int j = 0; j < size; j++) {
+        arr[j] = num;
+        num--;
+    }
+    bubble_sort(arr, size);
+
+    }
 
 }
 
-
-int main(int argc, char *argv[]){ 
-    
+int main() {
     int pid;
+
     
-    if((pid=fork(25)) == 0){
-        wastetime();
-        
-        printf(1, "Tickets 25\n");
-        
-        exit();
-    }
     
-    if((pid=fork(50)) == 0){
-        wastetime();
-        
-        printf(1, "Tickets 50\n");
-        
-        exit(); 
-    }
-
-    if((pid=fork(100)) == 0){
-        wastetime();
-        
-        printf(1, "Tickets 100\n");
-        
-        exit();
-    }
-
-    if((pid=fork(200)) == 0){
-        wastetime();
-        
-        printf(1, "Tickets 200\n");
-        
-        exit();
-    }
-
-    if((pid=fork(400)) == 0){
-        wastetime();
-        
-        printf(1, "Tickets 400\n");
-        
-        exit();
+    for (int i = 0; i < NUMBER_OF_PROCESS; i++) {
+        pid = fork((i+1)*100);
+        if (pid < 0) {
+            printf(1,"Failed to fork process.\n");
+            exit();
+        } else if (pid == 0) { 
+            wasteTime();            
+            printf(1,"Processo com tickets %d.\n", (i+1) *100); sleep(100);
+            exit();
+        }
     }
     
-
-    wait();
-    wait();
-    wait();
-    wait();
-    wait();
+    // Wait for all child processes to finish
+     while (wait() != -1);
+   
     
+    // printf(1,"Todos os processos filhos finalizaram.\n");
     exit();
-} 
+    return 0;
+}

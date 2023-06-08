@@ -13,8 +13,6 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
-
-
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -218,6 +216,8 @@ fork(int tickets)
   acquire(&ptable.lock);
 
   np->state = RUNNABLE;
+
+  // Atributos adicionados para o stride-scheduling  
   np->tickets = tickets;
   np->stride = M / tickets;
   np->value_at = np->stride;
@@ -341,11 +341,11 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
 voltar:
-    min = 10000;
+    min = 1000000;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if (p->state == RUNNABLE && p->value_at < min){
         min = p->value_at;
-      } else if (p->value_at > 10000) {
+      } else if (p->value_at > 900000) {
         for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) p->value_at = p->stride;
         goto voltar;
       } else {
@@ -359,6 +359,7 @@ voltar:
       if (p->value_at != min)
         continue;
       
+      //cprintf("Foi selecionado: %d\n", p->value_at);
       p->value_at += p->stride;
       //cprintf("%d\n", p->value_at);
 
@@ -371,7 +372,7 @@ voltar:
 
       swtch(&(c->scheduler), p->context);
       switchkvm();
-
+      //cprintf("Saiu: %d\n", p->value_at);
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
