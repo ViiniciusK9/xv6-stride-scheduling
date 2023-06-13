@@ -13,6 +13,7 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -329,55 +330,53 @@ void
 scheduler(void)
 {
   struct proc *p;
-  //struct proc *aux;
+  struct proc *aux;
   struct cpu *c = mycpu();
   c->proc = 0;
   int min;
   
   for(;;){
     // Enable interrupts on this processor.
-  sti();
+    sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
 voltar:
-    min = 1000000;
+    min = 900000;
+    aux = ptable.proc;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if (p->state == RUNNABLE && p->value_at < min){
         min = p->value_at;
-      } else if (p->value_at > 900000) {
-        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) p->value_at = p->stride;
+        aux = p;
+      } else if (p->value_at >= 900000) {
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) { if (p->state == RUNNABLE) { p->value_at = p->stride; } }
         goto voltar;
       } else {
         continue;
       }
     }
 
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
-      if (p->value_at != min)
-        continue;
-      
-      //cprintf("Foi selecionado: %d\n", p->value_at);
-      p->value_at += p->stride;
-      //cprintf("%d\n", p->value_at);
+    //cprintf("Foi selecionado: %d\n", p->value_at);
+    if (aux->state != RUNNABLE) goto fim;
+    
+    aux->value_at += aux->stride;
+    //cprintf("%d\n", p->value_at);
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      c->proc = p;
-      switchuvm(p);
-      p->state = RUNNING;
+    // Switch to chosen process.  It is the process's job
+    // to release ptable.lock and then reacquire it
+    // before jumping back to us.
+    c->proc = aux;
+    switchuvm(aux);
+    aux->state = RUNNING;
 
-      swtch(&(c->scheduler), p->context);
-      switchkvm();
-      //cprintf("Saiu: %d\n", p->value_at);
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      c->proc = 0;
-      break;
-    }
+    swtch(&(c->scheduler), aux->context);
+    switchkvm();
+    //cprintf("Saiu: %d\n", p->value_at);
+    // Process is done running for now.
+    // It should have changed its p->state before coming back.
+    c->proc = 0;
+    
+  fim:
     release(&ptable.lock);
 
   }
